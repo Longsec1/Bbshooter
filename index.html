@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bubble Shooter Frenzy</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            background-color: #f0f8ff;
+        }
+        h1 {
+            margin-top: 50px;
+        }
+        .menu {
+            margin: 20px;
+        }
+        .menu a {
+            display: inline-block;
+            padding: 10px 20px;
+            margin: 10px;
+            background-color: #4CAF50;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+        }
+        .menu a:hover {
+            background-color: #45a049;
+        }
+        #gameCanvas {
+            border: 2px solid #000;
+            display: none;
+            margin: 20px auto;
+        }
+        #score {
+            font-size: 20px;
+            margin: 20px;
+        }
+        #shooter {
+            width: 50px;
+            height: 50px;
+            background-color: #f1c40f;
+            border-radius: 50%;
+            position: relative;
+            margin: 0 auto;
+            bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="menu" class="menu">
+        <h1>Bubble Shooter Frenzy</h1>
+        <a href="#" onclick="startGame()">Play Game</a>
+        <a href="#" onclick="showScores()">View Scores</a>
+    </div>
+
+    <div id="gameContainer" style="display: none;">
+        <canvas id="gameCanvas" width="400" height="600"></canvas>
+        <div id="score">Score: 0</div>
+        <div id="shooter" onclick="shootBubble()"></div>
+        <button onclick="goBack()">Back to Menu</button>
+    </div>
+
+    <div id="scoreboard" style="display: none;">
+        <h2>Scores</h2>
+        <div id="scoreList"></div>
+        <button onclick="goBack()">Back to Menu</button>
+    </div>
+
+    <script>
+        let canvas, ctx;
+        let bubbles = [];
+        let score = 0;
+        let level = 1;
+        let bubblesTouchingGround = 0;
+        const maxBubbles = 10; // Starting number of bubbles
+
+        // Function to start the game
+        function startGame() {
+            document.getElementById('menu').style.display = 'none';
+            document.getElementById('gameContainer').style.display = 'block';
+            canvas = document.getElementById('gameCanvas');
+            ctx = canvas.getContext('2d');
+            resetGame();
+            drawBubbles();
+        }
+
+        // Function to reset the game
+        function resetGame() {
+            bubbles = [];
+            score = 0;
+            level = 1;
+            bubblesTouchingGround = 0;
+            createBubbles();
+            document.getElementById('score').innerText = 'Score: ' + score;
+            checkGameOver();
+        }
+
+        // Function to create bubbles for the current level
+        function createBubbles() {
+            for (let i = 0; i < maxBubbles + (level - 1) * 5; i++) {
+                let bubble = {
+                    x: Math.random() * (canvas.width - 30),
+                    y: Math.random() * (canvas.height - 30),
+                    color: getRandomColor(),
+                    touchedGround: false,
+                    speedX: Math.random() < 0.5 ? 2 : -2, // Random horizontal speed
+                    speedY: Math.random() < 0.5 ? 1 : -1 // Random vertical speed
+                };
+                bubbles.push(bubble);
+            }
+        }
+
+        // Function to get a random color for the bubbles
+        function getRandomColor() {
+            const colors = ['#FF5733', '#33FF57', '#3357FF', '#F1C40F', '#9B59B6'];
+            return colors[Math.floor(Math.random() * colors.length)];
+        }
+
+        // Function to draw bubbles on the canvas
+        function drawBubbles() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            bubbles.forEach(bubble => {
+                drawBubble(bubble);
+                // Move bubble
+                bubble.x += bubble.speedX;
+                bubble.y += bubble.speedY;
+
+                // Bounce the bubble off the walls
+                if (bubble.x + 15 >= canvas.width || bubble.x - 15 <= 0) {
+                    bubble.speedX = -bubble.speedX;
+                }
+                if (bubble.y + 15 >= canvas.height) {
+                    bubble.touchedGround = true;
+                    bubblesTouchingGround++;
+                    bubble.y = canvas.height - 15; // Reset to the ground
+                }
+            });
+            checkGameOver();
+        }
+
+        // Function to draw a single bubble with a gradient
+        function drawBubble(bubble) {
+            const gradient = ctx.createRadialGradient(bubble.x, bubble.y, 0, bubble.x, bubble.y, 15);
+            gradient.addColorStop(0, 'white');
+            gradient.addColorStop(1, bubble.color);
+            ctx.beginPath();
+            ctx.arc(bubble.x, bubble.y, 15, 0, Math.PI * 2);
+            ctx.fillStyle = gradient;
+            ctx.fill();
+            ctx.closePath();
+        }
+
+        // Function to shoot a bubble
+        function shootBubble() {
+            const shooterX = canvas.width / 2; // Center the shooter
+            const bubble = {
+                x: shooterX,
+                y: canvas.height - 50, // Position above the shooter
+                color: getRandomColor(),
+                radius: 15,
+                speed: 5
+            };
+
+            const shootInterval = setInterval(() => {
+                bubble.y -= bubble.speed;
+                if (bubble.y < 0) {
+                    clearInterval(shootInterval);
+                    return;
+                }
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                drawBubbles();
+                ctx.beginPath();
+                ctx.arc(bubble.x, bubble.y, bubble.radius, 0, Math.PI * 2);
+                ctx.fillStyle = bubble.color;
+                ctx.fill();
+                ctx.closePath();
+                checkBubbleCollision(bubble);
+            }, 30);
+        }
+
+        // Function to check if the shot bubble collides with any bubbles
+        function checkBubbleCollision(bubble) {
+            bubbles = bubbles.filter(existingBubble => {
+                const distance = Math.sqrt(Math.pow(existingBubble.x - bubble.x, 2) + Math.pow(existingBubble.y - bubble.y, 2));
+                if (distance < existingBubble.radius + bubble.radius) {
+                    score += 10;
+                    document.getElementById('score').innerText = 'Score: ' + score;
+                    return false; // Remove the hit bubble
+                }
+                return true;
+            });
+            drawBubbles();
+            if (bubbles.length === 0) {
+                level++;
+                // Increase shooter capability every few levels
+                if (level % 2 === 0) {
+                    shooterUpgrade();
+                }
+                resetGame();
+            }
+        }
+
+        // Function to upgrade the shooter's capability
+        function shooterUpgrade() {
+            const shooterSpeed = 10; // Increase shooting speed
+            const bubblesToShoot = Math.floor(level / 2); // Number of bubbles to shoot at once
+            document.getElementById('shooter').style.height = (50 + (bubblesToShoot * 10)) + 'px'; // Change the size of the shooter
+
+            // Allow shooting multiple bubbles
+            for (let i = 0; i < bubblesToShoot; i++) {
+                shootBubble();
+            }
+        }
+
+        // Function to check for game over
+        function checkGameOver() {
+            const threshold = Math.floor(bubbles.length * 0.2); // 20% of bubbles
+            if (bubblesTouchingGround >= threshold) {
+                alert("Game Over! Your score is: " + score);
+                goBack(); // Go back to the menu
+            }
+        }
+
+        // Function to show scores (in this case, just the current score)
+        function showScores() {
+            document.getElementById('menu').style.display = 'none';
+            document.getElementById('scoreboard').style.display = 'block';
+            document.getElementById('scoreList').innerText = 'Current Score: ' + score;
+        }
+
+        // Function to go back to the menu
+        function goBack() {
+            document.getElementById('menu').style.display = 'block';
+            document.getElementById('gameContainer').style.display = 'none';
+            document.getElementById('scoreboard').style.display = 'none';
+            document.removeEventListener('click', shootBubble);
+        }
+    </script>
+</body>
+</html>
